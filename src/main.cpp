@@ -27,20 +27,31 @@ void cc(int channel, int cc, double value) {
   message(0xB0, channel, cc, value * 127);
 }
 
+void pitch_bend(int channel, double value) {
+  int val = 16383 * value;
+  int first_byte = (val & 0x7F00) >> 8;
+  int second_byte = val & 0x7F;
+  message(0xE0, channel, first_byte, second_byte);
+}
+
 CalibrationData calibration;
 
 
 enum ThereMidiMode {
-  CC_Mode
+  CC_MODE, PITCH_BEND_MODE
 };
 
 struct CCModePreset {
   int cc = 1;
 };
 
+struct PitchBendModePreset {
+  double start_bend = 0.5;
+};
+
 struct ThereMidiPreset {
   int channel = 0;
-  ThereMidiMode mode = CC_MODE;
+  ThereMidiMode mode = PITCH_BEND_MODE;
   CCModePreset cc;
 };
 
@@ -65,8 +76,14 @@ void loop() {
   VL53L0X_RangingMeasurementData_t data;
   lox.rangingTest(&data, false);
 
-  switch () {
-    case CC_Mode:
+  switch (preset.mode) {
+    case CC_MODE:
+      //Send cc
+      if (data.RangeStatus != 4) {
+        cc(0, preset.cc.cc, fmin(fmax(0, (double) (data.RangeMilliMeter - calibration.min_dst)/calibration.max_dst), 1));
+      }
+      break;
+    case PITCH_BEND_MODE:
       //Send cc
       if (data.RangeStatus != 4) {
         cc(0, preset.cc.cc, fmin(fmax(0, (double) (data.RangeMilliMeter - calibration.min_dst)/calibration.max_dst), 1));
