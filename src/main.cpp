@@ -28,9 +28,9 @@ void cc(int channel, int cc, double value) {
 }
 
 void pitch_bend(int channel, double value) {
-  int val = 16383 * value;
-  int first_byte = (val & 0x7F00) >> 8;
-  int second_byte = val & 0x7F;
+  int val = round(16383 * value);
+  int first_byte = val & 0x7F;
+  int second_byte = (val >> 7) & 0x7F;
   message(0xE0, channel, first_byte, second_byte);
 }
 
@@ -47,12 +47,14 @@ struct CCModePreset {
 
 struct PitchBendModePreset {
   double start_bend = 0.5;
+  bool bending = false;
 };
 
 struct ThereMidiPreset {
   int channel = 0;
-  ThereMidiMode mode = PITCH_BEND_MODE;
+  ThereMidiMode mode = CC_MODE;
   CCModePreset cc;
+  PitchBendModePreset pb;
 };
 
 ThereMidiPreset preset;
@@ -80,13 +82,22 @@ void loop() {
     case CC_MODE:
       //Send cc
       if (data.RangeStatus != 4) {
-        cc(0, preset.cc.cc, fmin(fmax(0, (double) (data.RangeMilliMeter - calibration.min_dst)/calibration.max_dst), 1));
+        cc(preset.channel, preset.cc.cc, fmin(fmax(0, (double) (data.RangeMilliMeter - calibration.min_dst)/calibration.max_dst), 1));
       }
       break;
     case PITCH_BEND_MODE:
-      //Send cc
+      //Send pitch bend
       if (data.RangeStatus != 4) {
-        cc(0, preset.cc.cc, fmin(fmax(0, (double) (data.RangeMilliMeter - calibration.min_dst)/calibration.max_dst), 1));
+        double val = fmin(fmax(0, (double) (data.RangeMilliMeter - calibration.min_dst)/calibration.max_dst), 1);
+        if (!preset.pb.bending) {
+          preset.pb.bending = true;
+          preset.pb.start_bend = val;
+        }
+        pitch_bend(preset.channel, fmax(0, fmin(1, (val - preset.pb.start_bend) * 3 + 0.5)));
+      }
+      else if (preset.pb.bending) {
+        pitch_bend(preset.channel, 0.5);
+        preset.pb.bending = false;
       }
       break;
   }
