@@ -30,6 +30,22 @@ void cc(int channel, int cc, double value) {
 CalibrationData calibration;
 
 
+enum ThereMidiMode {
+  CC_Mode
+};
+
+struct CCModePreset {
+  int cc = 1;
+};
+
+struct ThereMidiPreset {
+  int channel = 0;
+  ThereMidiMode mode = CC_MODE;
+  CCModePreset cc;
+};
+
+ThereMidiPreset preset;
+
 void setup() {
   Serial.begin(115200); //MIDI baud rate
 
@@ -49,8 +65,13 @@ void loop() {
   VL53L0X_RangingMeasurementData_t data;
   lox.rangingTest(&data, false);
 
-  //Send modulation cc
-  if (data.RangeStatus != 4) {
-    cc(0, 1, fmin(fmax(0, (double) (data.RangeMilliMeter - calibration.min_dst)/calibration.max_dst), 1));
+  switch () {
+    case CC_Mode:
+      //Send cc
+      if (data.RangeStatus != 4) {
+        cc(0, preset.cc.cc, fmin(fmax(0, (double) (data.RangeMilliMeter - calibration.min_dst)/calibration.max_dst), 1));
+      }
+      break;
   }
+
 }
