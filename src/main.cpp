@@ -10,13 +10,9 @@ struct CalibrationData {
 
 void message(int operation, int channel, uint8_t first_data, uint8_t second_data) {
   int cmd = (operation & 0xF0) | (channel & 0x0F);
-  Serial.println("CMD");
-  Serial.println(cmd);
-  Serial.println(first_data & 0x7F);
-  Serial.println(second_data & 0x7F);
-  /*Serial.write(cmd);
+  Serial.write(cmd);
   Serial.write(first_data & 0x7F);
-  Serial.write(second_data & 0x7F);*/
+  Serial.write(second_data & 0x7F);
 }
 
 void note_on(int channel, int note, int velocity) {
