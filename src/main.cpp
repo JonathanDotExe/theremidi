@@ -51,8 +51,8 @@ struct PitchBendModeData {
 };
 
 struct NoteModeData {
-  int min_note = 69;
-  int max_note = 81;
+  int min_note = 68;
+  int max_note = 82;
   bool quantize = true;
   double jitter_threshold = 0.15;
 
@@ -124,10 +124,14 @@ void loop() {
           note_on(0, note, 127);
         }
         //Change note
-        else if (note != preset.note.curr_note && round(val + preset.note.jitter_threshold) != preset.note.curr_note && round(val - preset.note.jitter_threshold) != preset.note.curr_note) {
+        else if (note != preset.note.curr_note && (!preset.note.quantize || (round(val + preset.note.jitter_threshold) != preset.note.curr_note && round(val - preset.note.jitter_threshold) != preset.note.curr_note))) {
           note_on(0, note, 127);
           note_off(0, preset.note.curr_note);
           preset.note.curr_note = note;
+        }
+        //Pitchbend
+        if (!preset.note.quantize) {
+          pitch_bend(0, 0.5 + (val - note) * 0.5);
         }
       }
       else if (preset.note.playing) {
