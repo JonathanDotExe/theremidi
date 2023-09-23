@@ -5,7 +5,7 @@ Adafruit_VL53L0X lox = Adafruit_VL53L0X();
 
 struct CalibrationData {
   uint16_t min_dst = 30;
-  uint16_t max_dst = 700;
+  uint16_t max_dst = 400;
 };
 
 void message(int operation, int channel, uint8_t first_data, uint8_t second_data) {
@@ -38,30 +38,40 @@ CalibrationData calibration;
 
 
 enum ThereMidiMode {
-  CC_MODE, PITCH_BEND_MODE
+  CC_MODE, PITCH_BEND_MODE, NOTE_MODE
 };
 
-struct CCModePreset {
+struct CCModeData {
   int cc = 1;
 };
 
-struct PitchBendModePreset {
+struct PitchBendModeData {
   double start_bend = 0.5;
   bool bending = false;
 };
 
-struct ThereMidiPreset {
-  int channel = 0;
-  ThereMidiMode mode = ThereMidiMode::PITCH_BEND_MODE;
-  CCModePreset cc;
-  PitchBendModePreset pb;
+struct NoteModeData {
+  int min_note = 69;
+  int max_note = 81;
+  bool quantize = true;
+  double jitter_threshold = 0.15;
+
+  bool playing = false;
+  int curr_note = 61;
 };
 
-ThereMidiPreset preset;
+struct ThereMidiData {
+  int channel = 0;
+  ThereMidiMode mode = ThereMidiMode::NOTE_MODE;
+  CCModeData cc;
+  PitchBendModeData pb;
+  NoteModeData note;
+};
+
+ThereMidiData preset;
 
 void setup() {
   Serial.begin(115200); //MIDI baud rate
-  Serial.println("Hello");
   //Wait for serial
   while (! Serial) {
     delay(1);
@@ -99,6 +109,31 @@ void loop() {
         pitch_bend(preset.channel, 0.5);
         note_off(0, 60);
         preset.pb.bending = false;
+      }
+      break;
+    case NOTE_MODE:
+      if (data.RangeStatus != 4) {
+        //Found data
+        double val = fmin(fmax(0, (double) (data.RangeMilliMeter - calibration.min_dst)/calibration.max_dst), 1)  * (preset.note.max_note - preset.note.min_note) + preset.note.min_note;
+        int note = round(val);
+        //No note is playing
+        //Play new note
+        if (!preset.note.playing) {
+          preset.note.curr_note = note;
+          preset.note.playing = true;
+          note_on(0, note, 127);
+        }
+        //Change note
+        else if (note != preset.note.curr_note && round(val + preset.note.jitter_threshold) != preset.note.curr_note && round(val - preset.note.jitter_threshold) != preset.note.curr_note) {
+          note_on(0, note, 127);
+          note_off(0, preset.note.curr_note);
+          preset.note.curr_note = note;
+        }
+      }
+      else if (preset.note.playing) {
+        //Send note off
+        note_off(0, preset.note.curr_note);
+        preset.note.playing = false;
       }
       break;
   }
