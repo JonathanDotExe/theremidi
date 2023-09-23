@@ -5,7 +5,7 @@ Adafruit_VL53L0X lox = Adafruit_VL53L0X();
 
 struct CalibrationData {
   uint16_t min_dst = 30;
-  uint16_t max_dst = 300;
+  uint16_t max_dst = 700;
 };
 
 void message(int operation, int channel, uint8_t first_data, uint8_t second_data) {
@@ -52,7 +52,7 @@ struct PitchBendModePreset {
 
 struct ThereMidiPreset {
   int channel = 0;
-  ThereMidiMode mode = CC_MODE;
+  ThereMidiMode mode = ThereMidiMode::PITCH_BEND_MODE;
   CCModePreset cc;
   PitchBendModePreset pb;
 };
@@ -61,12 +61,11 @@ ThereMidiPreset preset;
 
 void setup() {
   Serial.begin(115200); //MIDI baud rate
-
+  Serial.println("Hello");
   //Wait for serial
   while (! Serial) {
     delay(1);
   }
-
   //Init sensor
   if (!lox.begin()) {
     Serial.println("Failed to initialize sensor");
@@ -90,6 +89,7 @@ void loop() {
       if (data.RangeStatus != 4) {
         double val = fmin(fmax(0, (double) (data.RangeMilliMeter - calibration.min_dst)/calibration.max_dst), 1);
         if (!preset.pb.bending) {
+          note_on(0, 60, 127);
           preset.pb.bending = true;
           preset.pb.start_bend = val;
         }
@@ -97,6 +97,7 @@ void loop() {
       }
       else if (preset.pb.bending) {
         pitch_bend(preset.channel, 0.5);
+        note_off(0, 60);
         preset.pb.bending = false;
       }
       break;
